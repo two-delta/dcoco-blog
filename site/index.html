@@ -57,7 +57,6 @@
   figure video { border: 1px solid var(--faint); background: #f4f7fc; }
   figcaption { max-width: 700px; margin: 12px auto 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
   figcaption b { color: var(--ink); font-weight: 500; }
-  .downloads { margin-top: 6px; font-size: 13px; }
   .eq { margin: 22px 0; padding: 14px 18px; background: var(--code-bg); border-left: 3px solid var(--blue); font: 400 15px/1.8 var(--mono); overflow-x: auto; }
   .eq var { font-style: italic; font-family: "Times New Roman", serif; font-size: 17px; }
   .note { padding: 14px 18px; background: var(--blue-soft); border-radius: 6px; font-size: 15.5px; }
@@ -159,7 +158,6 @@
 <figure class="wide">
   <video src="media/dcoco-speed-comparison.mp4" poster="media/dcoco-speed-comparison-poster.jpg" autoplay muted loop playsinline aria-label="Five columns type the same Python solution. DCOCO finishes first, followed by Domino, DFlash, DSpark and vanilla decoding."></video>
   <figcaption><b>Figure 1.</b> The same completion, typed at each method's measured speed. Pacing is the per-stream throughput the paper reports on LiveCodeBench for Llama-3.1-8B (thinking off, greedy, concurrency 1, one B200; Table 10), where DCOCO reaches 1,448.8 tok/s against 1,050.5 for the runner-up. The code is an illustrative HumanEval/32 solution, not a timed HumanEval run. Speculative decoding preserves the target model's output distribution, so every column produces the same text; only the wait differs.
-    <div class="downloads">Download: <a href="media/dcoco-speed-comparison.mp4" download>MP4</a> · <a href="media/dcoco-speed-comparison.gif" download>GIF</a></div>
   </figcaption>
 </figure>
 
