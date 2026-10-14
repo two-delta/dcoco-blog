@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DCOCO: Contextual Correction of Parallel Drafts for Speculative Decoding</title>
+<meta name="description" content="DCOCO makes parallel drafters draft like autoregressive ones, without giving up their speed. The fastest speculative decoder in every configuration we evaluated, up to 6.6× over vanilla decoding.">
+<meta property="og:title" content="DCOCO: Contextual Correction of Parallel Drafts for Speculative Decoding">
+<meta property="og:description" content="Fastest in every configuration we evaluated: up to 6.6× over vanilla decoding, and 6–23% ahead of the strongest competing method under concurrent serving.">
+<meta property="og:image" content="https://two-delta.github.io/dcoco-blog/media/dcoco-speed-comparison-poster.jpg">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥥</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,300&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f1b2d; --muted: rgba(15, 27, 45, .62); --faint: rgba(15, 27, 45, .12);
+    --blue: #1f5fd1; --blue-soft: #e7effd; --bg: #ffffff; --code-bg: #f4f7fc; --gold: #e3a21a;
+    --sans: "Roboto", system-ui, sans-serif; --mono: "Roboto Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 300 17px/1.7 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: var(--blue); text-decoration: none; border-bottom: 1px solid rgba(31, 95, 209, .35); }
+  a:hover { border-bottom-color: var(--blue); }
+  b, strong { font-weight: 500; }
+  code { font: 400 .87em var(--mono); color: var(--blue); }
+
+  /* Layout follows the distill.pub article grid: a 700px text column, wider figures. */
+  .nav { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid var(--faint); }
+  .nav-inner { max-width: 1040px; margin: 0 auto; padding: 12px 24px; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; font-size: 16px; }
+  .nav-inner .brand { font-weight: 700; color: var(--ink); border: 0; white-space: nowrap; }
+  .byline sup { font-size: .7em; color: var(--muted); margin-left: 1px; }
+  .nav-inner .brand span { font-weight: 300; }
+  .nav-links { display: flex; gap: 20px; flex-wrap: wrap; }
+  .nav-links a { color: var(--ink); border: 0; font-weight: 400; }
+  .nav-links a:hover { color: var(--blue); }
+  .title { max-width: 700px; margin: 0 auto; padding: 48px 24px 28px; }
+  .title h1 { margin: 0 0 14px; font: 700 50px/1.1 var(--sans); letter-spacing: -.01em; }
+  .title p { margin: 0; font-size: 19px; line-height: 1.55; }
+  .byline { border-top: 1px solid var(--faint); border-bottom: 1px solid var(--faint); padding: 20px 24px; font-size: 12.8px; line-height: 1.8; }
+  .byline-grid { max-width: 652px; margin: 0 auto; display: grid; grid-template-columns: 1.3fr 1.4fr 1fr; gap: 0 24px; }
+  .byline h3 { margin: 0 0 4px; font: 500 10px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .byline .author { font-weight: 500; }
+  .byline .aff { color: var(--muted); }
+  article { max-width: 700px; margin: 0 auto; padding: 32px 24px 64px; }
+  article > p, article li { margin: 0 0 18px; }
+  .lede { font-style: italic; }
+  h2 { margin: 56px 0 24px; padding-bottom: 14px; border-bottom: 1px solid var(--faint); font: 600 34px/1.25 var(--sans); }
+  h3 { margin: 36px 0 14px; font: 600 22px/1.35 var(--sans); }
+  h2, h3 { scroll-margin-top: 64px; }
+  figure { margin: 32px 0; }
+  figure.wide { margin-left: calc(50% - min(48vw, 520px)); margin-right: calc(50% - min(48vw, 520px)); }
+  figure img, figure video { display: block; width: 100%; height: auto; border-radius: 6px; }
+  figure video { border: 1px solid var(--faint); background: #f4f7fc; }
+  figcaption { max-width: 700px; margin: 12px auto 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+  figcaption b { color: var(--ink); font-weight: 500; }
+  .downloads { margin-top: 6px; font-size: 13px; }
+  .eq { margin: 22px 0; padding: 14px 18px; background: var(--code-bg); border-left: 3px solid var(--blue); font: 400 15px/1.8 var(--mono); overflow-x: auto; }
+  .eq var { font-style: italic; font-family: "Times New Roman", serif; font-size: 17px; }
+  .note { padding: 14px 18px; background: var(--blue-soft); border-radius: 6px; font-size: 15.5px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+  .table-wrap { overflow-x: auto; margin: 28px 0 8px; }
+  th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--faint); white-space: nowrap; }
+  th { font-weight: 500; border-bottom: 1px solid var(--ink); }
+  th:first-child, td:first-child, td:nth-child(2) { text-align: left; }
+  td.ours { color: var(--blue); font-weight: 500; background: var(--blue-soft); }
+  th.ours { color: var(--blue); }
+
+  pre { margin: 22px 0; padding: 14px 16px; background: var(--code-bg); border: 1px solid var(--faint); border-radius: 6px; overflow-x: auto; font: 400 13px/1.6 var(--mono); }
+  pre code { color: var(--ink); font-size: inherit; }
+  .card { margin: 24px 0; border: 1px solid var(--faint); border-radius: 8px; overflow: hidden; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--code-bg); border-bottom: 1px solid var(--faint); font: 500 11px var(--mono); letter-spacing: .06em; color: var(--muted); }
+  .card-head button { font: 500 10px var(--mono); letter-spacing: .06em; padding: 4px 8px; border: 1px solid var(--faint); border-radius: 4px; background: #fff; color: var(--ink); cursor: pointer; }
+  .card pre { margin: 0; border: 0; border-radius: 0; background: #fff; }
+
+  /* Mechanism walkthrough */
+  .mech { margin: 32px 0; border: 1px solid var(--faint); border-radius: 8px; overflow: hidden; }
+  .mech-tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--faint); }
+  .mech-tabs button { padding: 11px 8px; border: 0; border-bottom: 2px solid transparent; background: #fff; font: 400 13px var(--sans); color: var(--muted); cursor: pointer; text-align: left; }
+  .mech-tabs button b { font: 500 11px var(--mono); color: var(--blue); margin-right: 6px; }
+  .mech-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--blue); }
+  .mech svg { display: block; width: 100%; height: auto; background: var(--code-bg); }
+  .mech-copy { padding: 16px 18px 18px; border-top: 1px solid var(--faint); }
+  .mech-copy h4 { margin: 0 0 6px; font: 500 17px var(--sans); }
+  .mech-copy p { margin: 0; font-size: 15px; line-height: 1.6; }
+  .mech-controls { display: flex; gap: 8px; margin-top: 14px; }
+  .btn { padding: 7px 14px; border: 1px solid var(--ink); border-radius: 6px; background: var(--ink); color: #fff; font: 500 13px var(--sans); cursor: pointer; }
+  .btn.ghost { background: #fff; color: var(--ink); }
+  .btn:hover { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .slot-title { fill: var(--muted); font: 500 10px var(--mono); letter-spacing: .06em; }
+  .node { fill: #fff; stroke: #b9c6da; stroke-width: 1; transition: fill .3s, stroke .3s; }
+  .node.chosen { fill: var(--blue-soft); stroke: var(--blue); stroke-width: 1.6; }
+  .node.accepted { fill: #d7e6ff; stroke: var(--blue); stroke-width: 2; }
+  .tok { fill: var(--ink); font: 400 13px var(--mono); dominant-baseline: middle; }
+  .tok.sel { font-weight: 700; fill: var(--blue); }
+  .score { fill: var(--muted); font: 400 10.5px var(--mono); dominant-baseline: middle; text-anchor: end; opacity: 0; transition: opacity .4s; }
+  .score.on { opacity: 1; }
+  g.cand { transition: transform .7s cubic-bezier(.2, .8, .2, 1); }
+  .edge { fill: none; stroke: var(--blue); stroke-width: 1.2; opacity: .45; stroke-dasharray: 3 5; animation: flow .9s linear infinite; }
+  .edge.path { stroke-dasharray: none; animation: none; opacity: 1; stroke-width: 2.6; }
+  .row-label { fill: var(--muted); font: 400 11px var(--mono); }
+  .check { fill: var(--blue); font: 700 18px var(--sans); opacity: 0; transition: opacity .3s; }
+  .check.on { opacity: 1; }
+  @keyframes flow { to { stroke-dashoffset: -16; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  footer { border-top: 1px solid var(--faint); padding: 24px; text-align: center; font-size: 13px; color: var(--muted); }
+  @media (max-width: 720px) {
+    body { font-size: 16px; }
+    .title { padding: 32px 16px 20px; } .title h1 { font-size: 34px; } .title p { font-size: 17px; }
+    .byline { padding: 16px; } .byline-grid { grid-template-columns: 1fr 1fr; row-gap: 14px; } .byline-grid > div:last-child { grid-column: 1 / -1; }
+    article { padding: 24px 16px 48px; }
+    h2 { font-size: 27px; margin-top: 44px; } h3 { font-size: 19px; }
+    figure.wide { margin-left: 0; margin-right: 0; }
+    .nav-inner { padding: 10px 16px; font-size: 14px; } .nav-links { gap: 12px; }
+    .mech-tabs button { font-size: 11px; padding: 9px 5px; } .mech-tabs button b { display: block; margin: 0 0 2px; }
+    .mech-canvas { overflow-x: auto; } .mech svg { min-width: 500px; }
+    .nav-inner .brand span { display: none; } .nav-links a { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<nav class="nav"><div class="nav-inner">
+  <a class="brand" href="#">🥥 DCOCO <span>blog</span></a>
+  <div class="nav-links">
+    <a href="https://arxiv.org/abs/2610.12570">paper</a>
+    <a href="https://github.com/two-delta/DCOCO">code</a>
+    <a href="https://huggingface.co/TD-Labs/Qwen3-8B-DCOCO">models</a>
+    <a href="https://huggingface.co/papers/2610.12570">hf paper page</a>
+  </div>
+</div></nav>
+
+<header class="title">
+  <h1>Contextual Correction of Parallel Drafts for Speculative Decoding</h1>
+  <p>We introduce DCOCO (DFlash Contextual Corrector), a lightweight mechanism that restores the dependencies between drafted tokens that parallel drafters give up, while keeping drafting parallel.</p>
+</header>
+
+<section class="byline"><div class="byline-grid">
+  <div><h3>Authors</h3>
+    <div class="author">Roy Eisenstadt<sup>1,2</sup></div><div class="author">Harel Lidar<sup>1</sup></div><div class="author">Tal Gonen<sup>1</sup></div><div class="author">Omer Luxembourg<sup>3</sup></div>
+    <div class="author">Itamar Zimerman<sup>1</sup></div><div class="author">Lior Wolf<sup>2</sup></div><div class="author">Eli David<sup>1</sup></div><div class="author">Ilan Naiman<sup>1</sup></div>
+  </div>
+  <div><h3>Affiliations</h3>
+    <div class="aff"><sup>1</sup>Stealth Startup, Tel Aviv</div><div class="aff"><sup>2</sup>Tel Aviv University</div><div class="aff"><sup>3</sup>Ben-Gurion University</div>
+  </div>
+  <div><h3>Published</h3><div>Oct. 8, 2026</div></div>
+</div></section>
+
+<article>
+<p class="lede">The full paper is on arXiv: <a href="https://arxiv.org/abs/2610.12570">arxiv.org/abs/2610.12570</a>.</p>
+<p class="lede">Code, a ready-to-serve vLLM image and the evaluation suite: <a href="https://github.com/two-delta/DCOCO">github.com/two-delta/DCOCO</a>. Drafters for Qwen3-4B and Qwen3-8B: <a href="https://huggingface.co/TD-Labs/Qwen3-8B-DCOCO">huggingface.co/TD-Labs</a>.</p>
+
+<h2 id="bottom-line">The bottom line</h2>
+
+<figure class="wide">
+  <video src="media/dcoco-speed-comparison.mp4" poster="media/dcoco-speed-comparison-poster.jpg" autoplay muted loop playsinline aria-label="Five columns type the same Python solution. DCOCO finishes first, followed by Domino, DFlash, DSpark and vanilla decoding."></video>
+  <figcaption><b>Figure 1.</b> The same completion, typed at each method's measured speed. Pacing is the per-stream throughput the paper reports on LiveCodeBench for Llama-3.1-8B (thinking off, greedy, concurrency 1, one B200; Table 10), where DCOCO reaches 1,448.8 tok/s against 1,050.5 for the runner-up. The code is an illustrative HumanEval/32 solution, not a timed HumanEval run. Speculative decoding preserves the target model's output distribution, so every column produces the same text; only the wait differs.
+    <div class="downloads">Download: <a href="media/dcoco-speed-comparison.mp4" download>MP4</a> · <a href="media/dcoco-speed-comparison.gif" download>GIF</a></div>
+  </figcaption>
+</figure>
+
+<p>Across four verifier backbones and ten benchmarks, <b>DCOCO achieves the highest average throughput in every evaluated configuration</b>: greedy and stochastic decoding, with and without extended reasoning. It reaches <b>speedups of up to 6.6× over vanilla decoding</b>, and its best average speedup is 8–19% above the strongest competing method in each configuration.</p>
+
+<p>Its advantage persists under concurrent serving. <b>DCOCO outperforms the strongest competing method by 6–23% across 4–32 concurrent requests</b>, while the sequential correctors fall below uncorrected DFlash at these loads.</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Verifier</th><th>Thinking</th><th>DFlash</th><th>Domino</th><th>DSpark</th><th class="ours">DCOCO</th></tr></thead>
+  <tbody>
+    <tr><td>Qwen3-4B</td><td>off</td><td>2.98× / 2.52×</td><td>3.27× / 2.71×</td><td>2.66× / 2.28×</td><td class="ours">3.62× / 2.95×</td></tr>
+    <tr><td>Qwen3-4B</td><td>on</td><td>2.08× / 1.87×</td><td>2.17× / 1.93×</td><td>1.85× / 1.69×</td><td class="ours">2.38× / 2.12×</td></tr>
+    <tr><td>Qwen3-8B</td><td>off</td><td>2.95× / 2.45×</td><td>3.16× / 2.53×</td><td>2.88× / 2.37×</td><td class="ours">3.62× / 2.87×</td></tr>
+    <tr><td>Qwen3-8B</td><td>on</td><td>1.95× / 1.78×</td><td>1.97× / 1.79×</td><td>1.83× / 1.68×</td><td class="ours">2.26× / 2.03×</td></tr>
+    <tr><td>Qwen3-Coder-30B-A3B</td><td>off</td><td>1.89× / 1.67×</td><td>1.94× / 1.67×</td><td>1.84× / 1.62×</td><td class="ours">2.31× / 1.98×</td></tr>
+    <tr><td>Llama-3.1-8B</td><td>off</td><td>3.03× / 1.75×</td><td>3.24× / 1.79×</td><td>3.01× / 1.65×</td><td class="ours">3.75× / 1.93×</td></tr>
+  </tbody>
+</table></div>
+<figcaption style="margin:0 0 28px"><b>Table 1.</b> Average speedup over vanilla decoding across the ten evaluation suites, T=0 / T=1. Concurrency 1, one B200 per system; every drafter is trained on the same corpus with the same five-layer backbone and served on the same vLLM stack. Per-suite throughput and accepted lengths are in the paper's appendix.</figcaption>
+
+<p>DCOCO costs a few percent of the drafting cycle, ships as drafters for Qwen3-4B and Qwen3-8B, and runs in vLLM: <a href="#try-it"><code>vllm serve</code> is all it takes</a>.</p>
+
+<h2 id="how">How was this made possible?</h2>
+
+<p>Speculative decoding accelerates inference by having a lightweight drafter propose several future tokens, which the target model then verifies together. Verification preserves the target model's output distribution, so the benefit of a drafter is entirely in the speedup it delivers, and that depends on two things: how many drafted tokens are accepted, and how long drafting takes.</p>
+
+<p>Parallel diffusion drafters such as <a href="https://z-lab.ai/projects/dflash">DFlash</a> cut drafting latency by proposing a whole block in a single forward pass. That parallelism has a price. <b>Tokens within a draft block are predicted without access to the realized identities of the tokens before them</b>, so individually plausible predictions can combine into an incoherent continuation. A drafter that assigns probability to both “New York” and “San Diego” may emit “New Diego”.</p>
+
+<p>Two recent methods, <a href="https://github.com/deepseek-ai/DeepSpec">DSpark</a> and <a href="https://github.com/jianuo-huang/Domino">Domino</a>, recover these dependencies by adding a small sequential module that runs position by position. They recover acceptance, but the recurrence sits on the critical path of every drafting cycle. Our question was whether intra-block dependencies can be restored <i>without</i> reintroducing a sequential module. Two observations say they can.</p>
+
+<h3 id="obs-1">The drafter has usually already suspected the right token</h3>
+
+<p>We recorded DFlash's candidates during speculative decoding and measured <b>top-k coverage</b>: how often a slot's k highest-scoring candidates contain the token the verifier eventually commits. On Qwen3-8B, <b>the top-16 candidates contain the verifier's token at 59% of the slots where the top-1 is wrong</b>. The gap widens deeper into the block: at the last slot, top-16 coverage stays above 0.60 while top-1 falls below 0.16.</p>
+
+<figure>
+  <img src="figures/coverage.png" alt="Two line charts. Left: top-k coverage for Qwen3-8B falls with slot depth, much faster for top-1 than top-16. Right: the top-16 minus top-1 gap grows from about 0.12 to 0.45 across slots for all four verifiers." loading="lazy">
+  <figcaption><b>Figure 2.</b> Candidate coverage gains grow deeper in the block. Fraction of slots where DFlash's top-k candidates contain the verifier's committed token. (a) Qwen3-8B; shading marks the top-16 vs. top-1 gap. (b) The same gap across verifiers.</figcaption>
+</figure>
+
+<p>The drafter does not lack the right tokens; it fails to select them. Correction can therefore be cast as <b>re-selection among the drafter's existing candidates</b>, not generation of new tokens. And re-selection over K candidates per slot reduces to scoring K² transitions between adjacent slots, all of which can be computed at once.</p>
+
+<h3 id="obs-2">Verification only rewards the prefix</h3>
+
+<p>The verifier judges the draft left to right and <b>stops at the first rejection</b>. A corrected token at slot 5 standing behind a rejection at slot 1 is never even examined. An improvement deep in the block is only worth something if everything before it is accepted, so correction should prioritize the early prefix rather than optimize a score over the whole block.</p>
+
+<h2 id="method">DCOCO: re-select, don't regenerate</h2>
+
+<p>DCOCO operates on a single DFlash pass. Rather than committing to the top prediction at each slot, it keeps the top-K candidates, scores how well each candidate fits each candidate in the next slot, and then picks the draft with a prefix-first walk. Step through it below.</p>
+
+<div class="mech" id="mech">
+  <div class="mech-tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-step="0"><b>01</b>Draft</button>
+    <button role="tab" aria-selected="false" data-step="1"><b>02</b>Score pairs</button>
+    <button role="tab" aria-selected="false" data-step="2"><b>03</b>Re-select</button>
+    <button role="tab" aria-selected="false" data-step="3"><b>04</b>Verify</button>
+  </div>
+  <div class="mech-canvas"><svg viewBox="0 0 700 250" role="img" aria-labelledby="mech-title"><title id="mech-title">DCOCO re-selects tokens within a grid of draft candidates</title><g id="mech-g"></g></svg></div>
+  <div class="mech-copy" aria-live="polite">
+    <h4 id="mech-h"></h4>
+    <p id="mech-p"></p>
+    <div class="mech-controls"><button class="btn ghost" id="mech-play">Play all steps</button><button class="btn" id="mech-next">Next step</button></div>
+  </div>
+</div>
+<figcaption style="margin:-18px 0 28px"><b>Figure 3.</b> Interactive walkthrough of one drafting cycle. Tokens and scores follow the paper's illustrative example (Figure 2 of the paper); rows keep draft rank until re-selection.</figcaption>
+
+<p><b>Scoring every transition in parallel.</b> For each pair of adjacent slots, DCOCO assigns every transition from candidate <i>a</i> at slot <i>p</i> to candidate <i>b</i> at slot <i>p</i>+1 a score: the successor's own draft logit plus a learned correction.</p>
+
+<div class="eq"><var>S</var><sub><var>p</var></sub>(<var>a</var>, <var>b</var>) = <var>ℓ</var><sub><var>p</var>+1</sub>(<var>b</var>) + Δ<sub>θ</sub>( <var>s</var><sub><var>p</var></sub>, <var>z</var><sub><var>pa</var></sub>, <var>z</var><sub><var>p</var>+1,<var>b</var></sub>, <var>ℓ</var><sub><var>p</var></sub>(<var>a</var>), <var>ℓ</var><sub><var>p</var>+1</sub>(<var>b</var>) )</div>
+
+<p>Here <i>z</i> is a candidate representation that fuses the candidate's token embedding with its slot's hidden state, <i>s<sub>p</sub></i> is a pair state computed once from the two slots' hidden states and reused across all K² transitions, and Δ<sub>θ</sub> is a <b>shared two-layer MLP</b>. The corrector reads only what the single DFlash pass already produced (hidden states, candidate ids and logits), and all (B−1)K² scores are computed in one batched operation. Its output layer is zero-initialized, so before training every score reduces to the drafter's own logit and DCOCO reproduces the original draft exactly.</p>
+
+<p><b>Prefix-first selection.</b> Maximizing the sum of transition scores over the whole block would let a strong late transition compensate for a weak early one, even though late tokens only count if the prefix survives. DCOCO instead keeps the drafter's top candidate at the first slot and walks left to right, taking <b>the highest-scoring successor of the token it just chose</b>:</p>
+
+<div class="eq"><var>k</var><sub>1</sub> = argmax<sub><var>k</var></sub> <var>ℓ</var><sub>1</sub>(<var>k</var>),&nbsp;&nbsp;&nbsp; <var>k</var><sub><var>p</var>+1</sub> = argmax<sub><var>b</var></sub> <var>S</var><sub><var>p</var></sub>(<var>k</var><sub><var>p</var></sub>, <var>b</var>)</div>
+
+<p>This mirrors the way verification consumes a draft: front to back, stopping at the first miss. The walk costs O(BK) on top of the O(BK²) batched scoring pass. <b>Only this lightweight selection is sequential; neural scoring stays parallel.</b> Unlike DSpark and Domino, no learned module runs position by position.</p>
+
+<figure class="wide">
+  <img src="figures/method.png" alt="Architecture diagram. (a) One DFlash pass feeds candidate representations and pair states into a shared MLP that scores all candidate pairs in parallel. (b) Prefix-first selection walks the scored grid, turning 'These key is missing' into 'These keys are missing'." loading="lazy">
+  <figcaption><b>Figure 4.</b> DCOCO: parallel scoring, prefix-first selection. (a) One DFlash pass supplies slot states, candidate ids and logits; candidate and pair representations feed a shared MLP that computes all residual scores in parallel. (b) Starting from the first slot's draft argmax, selection follows the best transition from each chosen predecessor. Tokens and scores are illustrative.</figcaption>
+</figure>
+
+<p><b>Training.</b> The drafter and corrector are trained jointly, starting from a six-epoch DFlash checkpoint and training six more epochs with the corrector. Labels are the verifier's own argmax tokens at adjacent slots, and the correction loss is exponentially down-weighted with slot depth, matching the prefix structure of verification.</p>
+
+<h2 id="results">Where the speed comes from</h2>
+
+<p>Throughput is the number of tokens committed per verification cycle divided by the time a cycle takes, so a method can gain on either axis. <b>DCOCO gains on both.</b> Against the strongest baseline on Qwen3-8B, it accepts 7–8% longer prefixes <i>and</i> runs 6% shorter cycles, which multiply to a 13–15% throughput gain. Relative to the uncorrected drafter, it pays 3–4% per cycle for 18–27% longer accepted prefixes.</p>
+
+<div class="note">We report end-to-end tokens per second as the primary metric, not accepted length alone. A corrector can raise accepted length while losing wall-clock time to its own scoring cost, and only throughput exposes that trade. Every design constraint above (the small corrector width, the single batched scoring pass, the O(BK) walk) exists in service of it.</div>
+
+<h3 id="concurrency">It holds up under load</h3>
+
+<p>Serving systems batch concurrent requests, so we measured aggregate throughput from 4 to 32 concurrent streams. <b>DCOCO is fastest at every concurrency</b>, with margins over the strongest alternative reaching 23% under greedy decoding and 18% under sampling, and still 19% and 12% at 32 streams. Domino and DSpark keep their accepted lengths but progressively lose their throughput advantage, and <b>both become slower than uncorrected DFlash at the highest concurrency</b> as their per-position overhead outweighs the benefit. DCOCO stays ahead of DFlash throughout.</p>
+
+<figure class="wide">
+  <img src="figures/concurrency.png" alt="Bar charts of throughput at 4 to 32 concurrent streams for greedy and sampled decoding; DCOCO is highest at every point. A line chart shows DCOCO's margin over the second-best method between 12% and 23%." loading="lazy">
+  <figcaption><b>Figure 5.</b> At high concurrency, DCOCO achieves the highest throughput, while Domino and DSpark fall below DFlash. Qwen3-8B, thinking off, averaged over all ten suites: throughput at (a) T=0 and (b) T=1; (c) DCOCO's relative gain over the strongest baseline at each concurrency.</figcaption>
+</figure>
+
+<h3 id="ablations">What matters inside the corrector</h3>
+
+<ul>
+  <li><b>Prefix-first beats global.</b> Over identical learned scores, maximizing the block's total score yields lower accepted length and throughput than the greedy walk on every suite. A geometrically discounted global rule matches greedy's acceptance but is 2.8% slower on average, with an extra hyperparameter.</li>
+  <li><b>Both input pathways count.</b> Removing the pair state costs 7.3% / 5.6% of accepted length (T=0 / T=1); removing the candidate representations costs 4.8% / 3.7%.</li>
+  <li><b>It works as a drop-in, and better trained jointly.</b> With the drafter frozen, the corrector alone still improves DFlash by 4.4%; joint training is worth roughly 15% more.</li>
+</ul>
+
+<p>Absolute speedups follow the drafter's base acceptance. With thinking off, math and code reach 3.7–6.1× while open-ended chat stays at 1.8–1.9×.</p>
+
+<h2 id="try-it">Try it</h2>
+
+<p>DCOCO runs in vLLM through the speculative-decoding <code>dflash</code> method; the corrector is selected from the checkpoint's architecture. Build the image, which adds DCOCO to the official <code>vllm/vllm-openai:v0.31.0</code> release:</p>
+
+<pre><code>git clone https://github.com/two-delta/DCOCO.git && cd DCOCO
+docker build -t dcoco:vllm-v0.31.0 docker/</code></pre>
+
+<p>Serve a drafter with its target model; vLLM downloads both from Hugging Face:</p>
+
+<pre><code>docker run --gpus '"device=0"' --ipc=host -p 8000:8000 \
+  -v ~/.cache/huggingface:/root/.cache/huggingface -e HF_TOKEN \
+  dcoco:vllm-v0.31.0 Qwen/Qwen3-8B \
+  --speculative-config '{"method": "dflash", "model": "TD-Labs/Qwen3-8B-DCOCO", "num_speculative_tokens": 15}'</code></pre>
+
+<p>Then query it like any OpenAI-compatible server. Released drafters: <a href="https://huggingface.co/TD-Labs/Qwen3-8B-DCOCO"><code>TD-Labs/Qwen3-8B-DCOCO</code></a> and <a href="https://huggingface.co/TD-Labs/Qwen3-4B-DCOCO"><code>TD-Labs/Qwen3-4B-DCOCO</code></a>, both with block size 15. To reproduce the paper's ten-suite evaluation against a running server, use <code>scripts/benchmark.py</code> in the <a href="https://github.com/two-delta/DCOCO">repository</a>.</p>
+
+<h3 id="limitations">Limitations</h3>
+
+<ul>
+  <li>Each drafter is trained for one target model and must be served with exactly that model, with its full vocabulary.</li>
+  <li>The released drafters were trained on thinking-off generations; the speedup is lower with extended thinking.</li>
+  <li>The speedup depends on the task: highest on math and code, lower on open-ended chat.</li>
+</ul>
+
+<h2 id="takeaway">The takeaway</h2>
+
+<p>Parallel block drafters leave two things on the table: their top-K lists hold the right token far more often than their top-1 choice, and the identity of each drafted token is information no other slot ever gets to use. DCOCO is built on exactly these two facts. It reads only what the drafter already produced, scores every transition between adjacent candidates in parallel, and then greedily takes the best transition at each step, the way verification consumes a draft. <b>Correction, made cheap enough, is pure profit for speculative decoding.</b></p>
+
+<h2 id="acknowledgements">Acknowledgements</h2>
+
+<p>DCOCO builds on <a href="https://github.com/z-lab/dflash">DFlash</a>, and we compare against <a href="https://github.com/jianuo-huang/Domino">Domino</a> and <a href="https://github.com/deepseek-ai/DeepSpec">DSpark</a>. Our evaluation prompts come from <a href="https://github.com/deepseek-ai/DeepSpec">DeepSpec</a> and NVIDIA's <a href="https://huggingface.co/datasets/nvidia/SPEED-Bench">SPEED-Bench</a>, and serving is built on <a href="https://github.com/vllm-project/vllm">vLLM</a>. We thank their authors and maintainers.</p>
+
+<h2 id="citation">Citation</h2>
+
+<p>You can cite this post or the paper with the following:</p>
+
+<div class="card">
+  <div class="card-head"><span>BIBTEX</span><button id="copy-bib" type="button">COPY</button></div>
+<pre><code id="bib">@misc{eisenstadt2026contextualcorrectionparalleldraftsfor,
+  title         = {Contextual Correction of Parallel Drafts for Speculative Decoding},
+  author        = {Roy Eisenstadt and Harel Lidar and Tal Gonen and Omer Luxembourg and Itamar Zimerman and Lior Wolf and Eli David and Ilan Naiman},
+  year          = {2026},
+  eprint        = {2610.12570},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  url           = {https://arxiv.org/abs/2610.12570}
+}</code></pre>
+</div>
+</article>
+
+<footer>🥥 DCOCO · <a href="https://arxiv.org/abs/2610.12570">arXiv 2610.12570</a> · <a href="https://github.com/two-delta/DCOCO">GitHub</a> · <a href="https://huggingface.co/TD-Labs">Hugging Face</a></footer>
+
+<script>
+(() => {
+  // Paper Figure 2's example: DFlash's top-1 row reads "These key is missing"; the walk picks "These keys are missing".
+  const cols = [["These", "The", "A"], ["key", "keys", "locks"], ["is", "are", "was"], ["missing", "here", "broken"]];
+  const scores = [[4.2, 3.6, 2.8], [0.4, 2.7, 1.1], [0.2, 3.1, 0.8], [2.8, 1.6, 0.5]];
+  const pick = [0, 1, 1, 0];
+  const X0 = 150, DX = 150, Y0 = 92, DY = 50, NW = 112, NH = 32;
+  const steps = [
+    ["1 · DFlash drafts the block in one pass.",
+     "The parallel drafter proposes every slot at once. Instead of committing to each slot's top prediction, DCOCO keeps its top-K candidates. Read the top row: “These key is missing”. Each token is plausible, but no slot saw what the one before it chose."],
+    ["2 · A shared MLP scores every neighbouring pair, in parallel.",
+     "DCOCO scores every transition between candidates in adjacent slots, all (B−1)K² of them in one batched pass, from the candidate representations, the pair states and the logits of that single drafter pass. No extra drafter forward pass, and no module that runs position by position."],
+    ["3 · Prefix-first re-selection.",
+     "Starting from the first slot's draft argmax, DCOCO walks left to right and takes the highest-scoring successor of the token it just chose. The chosen candidate moves to the top of its slot: “keys” follows “These”, “are” follows “keys”. The block now reads “These keys are missing”."],
+    ["4 · The target verifies the corrected block.",
+     "The target model checks the whole block in one pass and accepts the longest correct prefix. Here every slot passes. Verification stops at the first rejection, which is why DCOCO puts its effort into the front of the block."]
+  ];
+  const g = document.getElementById("mech-g"), ns = "http://www.w3.org/2000/svg";
+  const tabs = [...document.querySelectorAll(".mech-tabs button")];
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let step = 0, timers = [], auto = null;
+  const el = (tag, attrs, text) => { const n = document.createElementNS(ns, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; g.append(n); return n; };
+  const later = (fn, ms) => timers.push(setTimeout(fn, reduced ? 0 : ms));
+  const rowOf = (c, r, swapped) => swapped ? (r === 0 ? pick[c] : r === pick[c] ? 0 : r) : r;
+
+  function draw(s) {
+    timers.forEach(clearTimeout); timers = []; g.replaceChildren();
+    el("text", { x: 20, y: Y0 + 4, class: "row-label" }, "top-1");
+    el("text", { x: 20, y: Y0 + DY + 4, class: "row-label" }, "top-2");
+    el("text", { x: 20, y: Y0 + 2 * DY + 4, class: "row-label" }, "top-3");
+    // Edges join candidates, not rows, so they follow a candidate when re-selection moves it.
+    const row = cols.map(() => [0, 1, 2]), path = [];
+    const edgeLayer = el("g", {});
+    const edges = () => {
+      edgeLayer.replaceChildren();
+      if (s < 1 || s === 3) return;
+      for (let c = 0; c < 3; c++) for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) {
+        const x1 = X0 + c * DX + NW / 2, x2 = X0 + (c + 1) * DX - NW / 2, y1 = Y0 + row[c][a] * DY, y2 = Y0 + row[c + 1][b] * DY;
+        const p = document.createElementNS(ns, "path");
+        p.setAttribute("d", `M${x1},${y1} C${x1 + 20},${y1} ${x2 - 20},${y2} ${x2},${y2}`);
+        p.setAttribute("class", path[c] && a === pick[c] && b === pick[c + 1] ? "edge path" : "edge");
+        edgeLayer.append(p);
+      }
+    };
+    edges();
+    const groups = cols.map((col, c) => {
+      el("text", { x: X0 + c * DX, y: 50, class: "slot-title", "text-anchor": "middle" }, `SLOT ${c + 1}`);
+      return col.map((tok, r) => {
+        const grp = el("g", { class: "cand", style: `transform:translate(${X0 + c * DX}px,${Y0 + rowOf(c, r, s === 3) * DY}px)` });
+        const rect = document.createElementNS(ns, "rect");
+        for (const [k, v] of Object.entries({ x: -NW / 2, y: -NH / 2, width: NW, height: NH, rx: 4, class: "node" })) rect.setAttribute(k, v);
+        const label = document.createElementNS(ns, "text");
+        for (const [k, v] of Object.entries({ x: -NW / 2 + 10, y: 1, class: "tok" })) label.setAttribute(k, v);
+        label.textContent = tok;
+        const sc = document.createElementNS(ns, "text");
+        for (const [k, v] of Object.entries({ x: NW / 2 - 8, y: 1, class: "score" + (s >= 1 ? " on" : "") })) sc.setAttribute(k, v);
+        sc.textContent = scores[c][r].toFixed(1);
+        grp.append(rect, label, sc);
+        if (s === 3 && r === pick[c]) { rect.classList.add("chosen"); label.classList.add("sel"); }
+        return grp;
+      });
+    });
+    if (s === 2) pick.forEach((r, c) => later(() => {
+      const chosen = groups[c][r], top = groups[c][0];
+      chosen.querySelector("rect").classList.add("chosen"); chosen.querySelector(".tok").classList.add("sel");
+      if (r !== 0) {
+        chosen.style.transform = `translate(${X0 + c * DX}px,${Y0}px)`;
+        top.style.transform = `translate(${X0 + c * DX}px,${Y0 + r * DY}px)`;
+        row[c][0] = r; row[c][r] = 0;
+      }
+      if (c > 0) path[c - 1] = true;
+      later(edges, 650);
+    }, 700 + 900 * c));
+    if (s === 3) {
+      pick.forEach((r, c) => {
+        const chk = el("text", { x: X0 + c * DX + NW / 2 - 4, y: Y0 - NH / 2 - 6, class: "check", "text-anchor": "middle" }, "✓");
+        later(() => { chk.classList.add("on"); groups[c][r].querySelector("rect").classList.add("accepted"); }, 600 + 1000 * c);
+      });
+    }
+  }
+
+  function set(s) {
+    step = Math.max(0, Math.min(3, s));
+    tabs.forEach((t, i) => t.setAttribute("aria-selected", String(i === step)));
+    document.getElementById("mech-h").textContent = steps[step][0];
+    document.getElementById("mech-p").textContent = steps[step][1];
+    document.getElementById("mech-next").textContent = step === 3 ? "Start over" : "Next step";
+    draw(step);
+  }
+  const stop = () => { clearTimeout(auto); auto = null; document.getElementById("mech-play").textContent = "Play all steps"; };
+  const run = () => { if (step >= 3) return stop(); set(step + 1); auto = setTimeout(run, step === 2 ? 7500 : 7000); };
+  tabs.forEach((t, i) => t.addEventListener("click", () => { stop(); set(i); }));
+  document.getElementById("mech-next").addEventListener("click", () => { stop(); set(step === 3 ? 0 : step + 1); });
+  document.getElementById("mech-play").addEventListener("click", () => {
+    if (auto) return stop();
+    set(0); document.getElementById("mech-play").textContent = "Stop"; auto = setTimeout(run, 7000);
+  });
+  document.getElementById("copy-bib").addEventListener("click", e => {
+    navigator.clipboard.writeText(document.getElementById("bib").textContent).then(() => { e.target.textContent = "COPIED"; setTimeout(() => e.target.textContent = "COPY", 1500); });
+  });
+  set(0);
+})();
+</script>
+</body>
+</html>
