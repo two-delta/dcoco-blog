@@ -207,7 +207,7 @@
 
 <h2 id="method">DCOCO: re-select, don't regenerate</h2>
 
-<p>DCOCO operates on a single DFlash pass. Rather than committing to the top prediction at each slot, it keeps the top-K candidates, scores how well each candidate fits each candidate in the next slot, and then picks the draft with a prefix-first walk. Step through it below.</p>
+<p>DCOCO operates on a single DFlash pass. Rather than committing to the top prediction at each slot, it keeps the top-K candidates, scores how well each candidate fits each candidate in the next slot, and then picks the draft with a prefix-first walk. It plays below; click a step to jump to it.</p>
 
 <div class="mech" id="mech">
   <div class="mech-tabs" role="tablist">
@@ -220,7 +220,7 @@
   <div class="mech-copy" aria-live="polite">
     <h4 id="mech-h"></h4>
     <p id="mech-p"></p>
-    <div class="mech-controls"><button class="btn ghost" id="mech-play">Play all steps</button><button class="btn" id="mech-next">Next step</button></div>
+    <div class="mech-controls"><button class="btn ghost" id="mech-restart">Start over</button></div>
   </div>
 </div>
 <figcaption style="margin:-18px 0 28px"><b>Figure 3.</b> Interactive walkthrough of one drafting cycle. Tokens and scores follow the paper's illustrative example (Figure 2 of the paper); rows keep draft rank until re-selection.</figcaption>
@@ -407,17 +407,16 @@ docker build -t dcoco:vllm-v0.31.0 docker/</code></pre>
     tabs.forEach((t, i) => t.setAttribute("aria-selected", String(i === step)));
     document.getElementById("mech-h").textContent = steps[step][0];
     document.getElementById("mech-p").textContent = steps[step][1];
-    document.getElementById("mech-next").textContent = step === 3 ? "Start over" : "Next step";
     draw(step);
   }
-  const stop = () => { clearTimeout(auto); auto = null; document.getElementById("mech-play").textContent = "Play all steps"; };
+  const stop = () => { clearTimeout(auto); auto = null; };
   const run = () => { if (step >= 3) return stop(); set(step + 1); auto = setTimeout(run, step === 2 ? 7500 : 7000); };
+  const play = () => { stop(); set(0); auto = setTimeout(run, 7000); };
   tabs.forEach((t, i) => t.addEventListener("click", () => { stop(); set(i); }));
-  document.getElementById("mech-next").addEventListener("click", () => { stop(); set(step === 3 ? 0 : step + 1); });
-  document.getElementById("mech-play").addEventListener("click", () => {
-    if (auto) return stop();
-    set(0); document.getElementById("mech-play").textContent = "Stop"; auto = setTimeout(run, 7000);
-  });
+  document.getElementById("mech-restart").addEventListener("click", play);
+  // Start playing the first time the walkthrough scrolls into view, so readers see it from step 1.
+  const seen = new IntersectionObserver(([e]) => { if (e.isIntersecting) { seen.disconnect(); play(); } }, { threshold: 0.5 });
+  seen.observe(document.getElementById("mech"));
   document.getElementById("copy-bib").addEventListener("click", e => {
     navigator.clipboard.writeText(document.getElementById("bib").textContent).then(() => { e.target.textContent = "COPIED"; setTimeout(() => e.target.textContent = "COPY", 1500); });
   });

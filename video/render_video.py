@@ -89,11 +89,26 @@ def pop(t):
     return 1 + 2.7 * (t - 1) ** 3 + 1.7 * (t - 1) ** 2 if t else 0.0
 
 
-def trophy(cx, cy, s):
+def cup(color):
+    def draw(cx, cy, s):
+        return (f'<g transform="translate({cx},{cy}) scale({s})">'
+                f'<path d="M-9,-11 H9 V-4 A9,9 0 0 1 -9,-4 Z" fill="{color}"/>'
+                f'<path d="M-9,-8 H-13 A4,5 0 0 0 -8,0 M9,-8 H13 A4,5 0 0 1 8,0" fill="none" stroke="{color}" stroke-width="2.4"/>'
+                f'<rect x="-2" y="4" width="4" height="5" fill="{color}"/><rect x="-7" y="9" width="14" height="3.5" rx="1" fill="{color}"/></g>')
+    return draw
+
+
+def turtle(cx, cy, s):
     return (f'<g transform="translate({cx},{cy}) scale({s})">'
-            f'<path d="M-9,-11 H9 V-4 A9,9 0 0 1 -9,-4 Z" fill="{GOLD}"/>'
-            f'<path d="M-9,-8 H-13 A4,5 0 0 0 -8,0 M9,-8 H13 A4,5 0 0 1 8,0" fill="none" stroke="{GOLD}" stroke-width="2.4"/>'
-            f'<rect x="-2" y="4" width="4" height="5" fill="{GOLD}"/><rect x="-7" y="9" width="14" height="3.5" rx="1" fill="{GOLD}"/></g>')
+            f'<ellipse cx="-11" cy="6" rx="2.6" ry="2.2" fill="#5f9e57"/><ellipse cx="7" cy="6" rx="2.6" ry="2.2" fill="#5f9e57"/>'
+            f'<circle cx="12" cy="-1" r="4" fill="#5f9e57"/><circle cx="13.3" cy="-2" r=".9" fill="{INK}"/>'
+            f'<path d="M-15,4 A11,11 0 0 1 9,4 Z" fill="#3f7a3a"/>'
+            f'<path d="M-9,4 L-6,-3 L0,-5 L6,-3 L5,4 M-6,-3 L0,4 L6,-3" fill="none" stroke="#7fbf6f" stroke-width="1"/></g>')
+
+
+# Finish place → icon: podium cups for the top three, then a sad face, then the turtle.
+ICONS = [cup(GOLD), cup("#a7b1bf"), cup("#b8733a"), lambda cx, cy, s: sad(cx, cy, s), turtle]
+LABEL_COLORS = [GOLD, "#7d8ca3", "#b8733a", MUTED, MUTED]
 
 
 def sad(cx, cy, s):
@@ -134,9 +149,9 @@ def frame(t):
             s.append(text(ix - 14, iy + 4, "Thinking" + "." * (int(t * 3) % 4), 10.5, MUTED, MONO, anchor="end"))
         else:
             rank = FINISH_RANK[i]
-            s.append((trophy if rank == 0 else sad)(ix, iy, pop(t - done_at)))
+            s.append(ICONS[rank](ix, iy, pop(t - done_at)))
             label = ["1st", "2nd", "3rd", "4th", "5th"][rank]
-            s.append(text(ix - 21, iy + 4, label, 11, GOLD if rank == 0 else MUTED, MONO, weight=700, anchor="end"))
+            s.append(text(ix - 21, iy + 4, label, 11, LABEL_COLORS[rank], MONO, weight=700, anchor="end"))
         s.append(f'<line x1="{x + 14}" y1="{y0 + 60}" x2="{x + cw - 14}" y2="{y0 + 60}" stroke="{LINE}"/>')
 
         p = min(1.0, t / done_at)
